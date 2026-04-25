@@ -29,7 +29,7 @@ async function startBot() {
 
       setTimeout(async () => {
         try {
-          const number = "6281234567890"; // 🔴 GANTI NOMOR KAMU
+          const number = "6282287486762"; // 🔴 GANTI NOMOR KAMU
           const code = await sock.requestPairingCode(number);
 
           console.log("\n🔑 KODE PAIRING:");
