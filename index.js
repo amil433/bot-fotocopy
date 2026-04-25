@@ -20,7 +20,7 @@ async function startBot() {
 
     // ✅ PAIRING NOMOR (AMAN)
     if (!sock.authState.creds.registered) {
-      const number = "6281234567890"; // GANTI NOMOR KAMU
+      const number = "6282287486762"; // GANTI NOMOR KAMU
       const code = await sock.requestPairingCode(number);
       console.log("🔑 Kode pairing:", code);
     }
