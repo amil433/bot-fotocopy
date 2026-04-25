@@ -1,0 +1,17 @@
+{
+  "name": "wa-bot-replit",
+  "version": "1.0.0",
+  "description": "Bot WhatsApp ringan untuk Replit",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "keywords": ["whatsapp-bot", "replit", "lightweight"],
+  "author": "Amil",
+  "license": "ISC",
+  "dependencies": {
+    "@whiskeysockets/baileys": "^6.7.0",
+    "pino": "^8.0.0"
+  }
+}
