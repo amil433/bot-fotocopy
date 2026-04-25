@@ -1,6 +1,11 @@
 import makeWASocket, { useMultiFileAuthState, DisconnectReason } from "@whiskeysockets/baileys";
 import pino from "pino";
-import qrcode from "qrcode-terminal";
+import readline from "readline";
+
+const rl = readline.createInterface({
+  input: process.stdin,
+  output: process.stdout
+});
 
 async function startBot() {
   const { state, saveCreds } = await useMultiFileAuthState("session");
@@ -10,27 +15,28 @@ async function startBot() {
     logger: pino({ level: "silent" })
   });
 
-  // simpan session
   sock.ev.on("creds.update", saveCreds);
 
-  // handle koneksi
+  // ✅ PAIRING VIA NOMOR
+  if (!sock.authState.creds.registered) {
+    rl.question("Masukkan nomor WhatsApp (contoh: 628xxxx): ", async (number) => {
+      const code = await sock.requestPairingCode(number);
+      console.log("Kode pairing kamu:", code);
+    });
+  }
+
   sock.ev.on("connection.update", (update) => {
-  const { connection, lastDisconnect, qr } = update;
+    const { connection, lastDisconnect } = update;
 
-  if (qr) {
-    console.log("Scan QR ini:");
-    qrcode.generate(qr, { small: true });
-  }
+    if (connection === "close") {
+      const reconnect =
+        lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
+      if (reconnect) startBot();
+    } else if (connection === "open") {
+      console.log("✅ Bot WA aktif");
+    }
+  });
 
-  if (connection === "close") {
-    const reconnect =
-      lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
-    if (reconnect) startBot();
-  } else if (connection === "open") {
-    console.log("✅ Bot WA aktif");
-  }
-});
-  
   // pesan masuk
   sock.ev.on("messages.upsert", async ({ messages }) => {
     const msg = messages[0];
@@ -44,34 +50,21 @@ async function startBot() {
 
     const pesan = text.toLowerCase();
 
-    // MENU
     if (pesan === "menu") {
       await sock.sendMessage(from, {
-        text: "📄 *Amil Jaya Fotocopy*\nSilakan pilih:",
-        buttons: [
-          { buttonId: "harga", buttonText: { displayText: "💰 Harga" } },
-          { buttonId: "order", buttonText: { displayText: "🛒 Order" } }
-        ],
-        headerType: 1
+        text: "📄 *Amil Jaya Fotocopy*\nKetik:\n1. harga\n2. order"
       });
     }
 
-    // HARGA
     if (pesan === "harga") {
       await sock.sendMessage(from, {
-        text:
-          "💰 *Harga:*\n" +
-          "- FC Hitam Putih: 200\n" +
-          "- FC Warna: 500\n" +
-          "- Print: 1000\n" +
-          "- Laminating: 5000"
+        text: "💰 FC:200 | Warna:500 | Print:1000"
       });
     }
 
-    // ORDER
     if (pesan === "order") {
       await sock.sendMessage(from, {
-        text: "🛒 Kirim format:\nNama - Layanan - Jumlah\nContoh:\nAmil - Print - 10"
+        text: "Kirim:\nNama - Layanan - Jumlah"
       });
     }
   });
