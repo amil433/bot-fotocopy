@@ -1,88 +1,156 @@
-import makeWASocket, {
+const {
+  default: makeWASocket,
   useMultiFileAuthState,
-  DisconnectReason
-} from "@whiskeysockets/baileys";
-import pino from "pino";
-import qrcode from "qrcode-terminal";
+  downloadContentFromMessage
+} = require("@whiskeysockets/baileys")
 
+const fs = require("fs")
+const sharp = require("sharp")
+
+// =====================
+// HARGA
+// =====================
+const HARGA = {
+  bw: 500,
+  color: 1000
+}
+
+// =====================
+// STICKER FUNCTION
+// =====================
+async function createSticker(buffer) {
+  return await sharp(buffer)
+    .resize(512, 512, { fit: "contain" })
+    .webp()
+    .toBuffer()
+}
+
+// =====================
+// START BOT
+// =====================
 async function startBot() {
-  const { state, saveCreds } = await useMultiFileAuthState("session");
+  const { state, saveCreds } = await useMultiFileAuthState("./session")
 
   const sock = makeWASocket({
     auth: state,
-    logger: pino({ level: "silent" })
-  });
+    printQRInTerminal: false,
+    browser: ["Ubuntu", "Chrome", "22.04.4"]
+  })
 
-  sock.ev.on("creds.update", saveCreds);
+  sock.ev.on("creds.update", saveCreds)
 
-  sock.ev.on("connection.update", (update) => {
-    const { connection, lastDisconnect, qr } = update;
+  // =====================
+  // CONNECTION
+  // =====================
+  sock.ev.on("connection.update", (u) => {
+    const { connection, qr } = u
 
-    // ✅ QR muncul di console
-    if (qr) {
-      console.log("\n📱 SCAN QR INI:\n");
-      qrcode.generate(qr, { small: true });
-    }
-
-    if (connection === "connecting") {
-      console.log("⏳ Menghubungkan...");
-    }
+    if (qr) console.log("SCAN QR:", qr)
 
     if (connection === "open") {
-      console.log("✅ Bot WA aktif");
+      console.log("🤖 BOT FOTOCOPY PRO ONLINE")
     }
 
     if (connection === "close") {
-      const reconnect =
-        lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
-
-      console.log("🔁 Reconnect...");
-
-      if (reconnect) startBot();
+      console.log("RECONNECT...")
+      startBot()
     }
-  });
+  })
 
-  // 📩 HANDLE PESAN
+  // =====================
+  // MESSAGE HANDLER
+  // =====================
   sock.ev.on("messages.upsert", async ({ messages }) => {
-    const msg = messages[0];
-    if (!msg.message || msg.key.fromMe) return;
+    const msg = messages[0]
+    if (!msg.message) return
 
-    const from = msg.key.remoteJid;
+    const from = msg.key.remoteJid
+
     const text =
       msg.message.conversation ||
       msg.message.extendedTextMessage?.text ||
-      "";
+      msg.message.buttonsResponseMessage?.selectedButtonId ||
+      msg.message.listResponseMessage?.singleSelectReply?.selectedRowId
 
-    const pesan = text.toLowerCase();
+    console.log("MSG:", text)
 
-    if (pesan === "menu") {
-      await sock.sendMessage(from, {
+    // =====================
+    // MENU
+    // =====================
+    if (text === "menu") {
+      return await sock.sendMessage(from, {
         text:
-          "📄 *Amil Jaya Fotocopy*\n\n" +
-          "Ketik:\n" +
-          "1. harga\n" +
-          "2. order"
-      });
+          "📌 *AMIL JAYA FOTOCOPY*\n\n" +
+          "menu:\n" +
+          "- harga\n" +
+          "- order\n" +
+          "- print 10 bw"
+      })
     }
 
-    if (pesan === "harga") {
-      await sock.sendMessage(from, {
+    // =====================
+    // HARGA
+    // =====================
+    if (text === "harga") {
+      return await sock.sendMessage(from, {
         text:
-          "💰 *Harga:*\n" +
-          "- FC Hitam Putih: 200\n" +
-          "- FC Warna: 500\n" +
-          "- Print: 1000\n" +
-          "- Laminating: 5000"
-      });
+          "💰 *HARGA*\n\n" +
+          `BW: Rp${HARGA.bw}\n` +
+          `Color: Rp${HARGA.color}`
+      })
     }
 
-    if (pesan === "order") {
-      await sock.sendMessage(from, {
+    // =====================
+    // AUTO HITUNG
+    // =====================
+    if (text && text.startsWith("print")) {
+      const args = text.split(" ")
+
+      const jumlah = parseInt(args[1]) || 0
+      const jenis = args[2]
+
+      const harga = HARGA[jenis] || 0
+      const total = jumlah * harga
+
+      return await sock.sendMessage(from, {
         text:
-          "🛒 Format:\nNama - Layanan - Jumlah\n\nContoh:\nAmil - Print - 10"
-      });
+          `🧾 STRUK\n\n` +
+          `Jenis: ${jenis}\n` +
+          `Jumlah: ${jumlah}\n` +
+          `Total: Rp${total}`
+      })
     }
-  });
+
+    // =====================
+    // ORDER
+    // =====================
+    if (text === "order") {
+      return await sock.sendMessage(from, {
+        text: "📦 Kirim foto atau file untuk dicetak"
+      })
+    }
+
+    // =====================
+    // 📸 AUTO STICKER
+    // =====================
+    if (msg.message.imageMessage) {
+      const stream = await downloadContentFromMessage(
+        msg.message.imageMessage,
+        "image"
+      )
+
+      let buffer = Buffer.from([])
+      for await (const chunk of stream) {
+        buffer = Buffer.concat([buffer, chunk])
+      }
+
+      const sticker = await createSticker(buffer)
+
+      return await sock.sendMessage(from, {
+        sticker: sticker
+      })
+    }
+  })
 }
 
-startBot();
+startBot()
