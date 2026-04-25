@@ -3,6 +3,7 @@ import makeWASocket, {
   DisconnectReason
 } from "@whiskeysockets/baileys";
 import pino from "pino";
+import qrcode from "qrcode-terminal";
 
 async function startBot() {
   const { state, saveCreds } = await useMultiFileAuthState("session");
@@ -14,31 +15,17 @@ async function startBot() {
 
   sock.ev.on("creds.update", saveCreds);
 
-  let sudahPairing = false;
+  sock.ev.on("connection.update", (update) => {
+    const { connection, lastDisconnect, qr } = update;
 
-  sock.ev.on("connection.update", async (update) => {
-    const { connection, lastDisconnect } = update;
+    // ✅ QR muncul di console
+    if (qr) {
+      console.log("\n📱 SCAN QR INI:\n");
+      qrcode.generate(qr, { small: true });
+    }
 
     if (connection === "connecting") {
       console.log("⏳ Menghubungkan...");
-    }
-
-    // ✅ Pairing hanya sekali
-    if (!sock.authState.creds.registered && !sudahPairing) {
-      sudahPairing = true;
-
-      setTimeout(async () => {
-        try {
-          const number = "6282287486762"; // 🔴 GANTI NOMOR KAMU
-          const code = await sock.requestPairingCode(number);
-
-          console.log("\n🔑 KODE PAIRING:");
-          console.log(code);
-          console.log("📱 Masukkan di WhatsApp > Perangkat tertaut\n");
-        } catch (err) {
-          console.log("❌ Gagal ambil kode pairing");
-        }
-      }, 8000); // delay biar stabil
     }
 
     if (connection === "open") {
@@ -68,7 +55,6 @@ async function startBot() {
 
     const pesan = text.toLowerCase();
 
-    // MENU
     if (pesan === "menu") {
       await sock.sendMessage(from, {
         text:
@@ -79,7 +65,6 @@ async function startBot() {
       });
     }
 
-    // HARGA
     if (pesan === "harga") {
       await sock.sendMessage(from, {
         text:
@@ -91,13 +76,10 @@ async function startBot() {
       });
     }
 
-    // ORDER
     if (pesan === "order") {
       await sock.sendMessage(from, {
         text:
-          "🛒 *Format Order:*\n" +
-          "Nama - Layanan - Jumlah\n\n" +
-          "Contoh:\nAmil - Print - 10"
+          "🛒 Format:\nNama - Layanan - Jumlah\n\nContoh:\nAmil - Print - 10"
       });
     }
   });
