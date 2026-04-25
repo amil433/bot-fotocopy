@@ -1,11 +1,5 @@
 import makeWASocket, { useMultiFileAuthState, DisconnectReason } from "@whiskeysockets/baileys";
 import pino from "pino";
-import readline from "readline";
-
-const rl = readline.createInterface({
-  input: process.stdin,
-  output: process.stdout
-});
 
 async function startBot() {
   const { state, saveCreds } = await useMultiFileAuthState("session");
@@ -17,23 +11,28 @@ async function startBot() {
 
   sock.ev.on("creds.update", saveCreds);
 
-  // ✅ PAIRING VIA NOMOR
-  if (!sock.authState.creds.registered) {
-    rl.question("Masukkan nomor WhatsApp (contoh: 628xxxx): ", async (number) => {
-      const code = await sock.requestPairingCode(number);
-      console.log("Kode pairing kamu:", code);
-    });
-  }
-
-  sock.ev.on("connection.update", (update) => {
+  sock.ev.on("connection.update", async (update) => {
     const { connection, lastDisconnect } = update;
+
+    if (connection === "connecting") {
+      console.log("⏳ Menghubungkan...");
+    }
+
+    // ✅ PAIRING NOMOR (AMAN)
+    if (!sock.authState.creds.registered) {
+      const number = "6281234567890"; // GANTI NOMOR KAMU
+      const code = await sock.requestPairingCode(number);
+      console.log("🔑 Kode pairing:", code);
+    }
+
+    if (connection === "open") {
+      console.log("✅ Bot WA aktif");
+    }
 
     if (connection === "close") {
       const reconnect =
         lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
       if (reconnect) startBot();
-    } else if (connection === "open") {
-      console.log("✅ Bot WA aktif");
     }
   });
 
@@ -58,13 +57,13 @@ async function startBot() {
 
     if (pesan === "harga") {
       await sock.sendMessage(from, {
-        text: "💰 FC:200 | Warna:500 | Print:1000"
+        text: "💰 Harga:\nFC:200\nWarna:500\nPrint:1000\nLaminating:5000"
       });
     }
 
     if (pesan === "order") {
       await sock.sendMessage(from, {
-        text: "Kirim:\nNama - Layanan - Jumlah"
+        text: "🛒 Format:\nNama - Layanan - Jumlah"
       });
     }
   });
