@@ -1,7 +1,7 @@
 {
-  "name": "wa-bot-pairing",
+  "name": "wa-bot-fotocopy",
   "version": "1.0.0",
-  "description": "Bot WA Fotocopy Pairing Nomor",
+  "description": "Bot WA sederhana untuk fotocopy",
   "main": "index.js",
   "type": "module",
   "scripts": {
